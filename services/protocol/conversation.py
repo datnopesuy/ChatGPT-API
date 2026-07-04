@@ -206,6 +206,18 @@ def prompt_with_global_system(prompt: str) -> str:
     return f"{config.global_system_prompt}\n\n{prompt}" if config.global_system_prompt else prompt
 
 
+def prepend_chat_system_prompt(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """在纯文本对话消息前插入 chat_system_prompt（TOEIC 等场景专用）。
+
+    仅作用于文本链路，不影响图片生成。若未配置则原样返回。
+    传入的 messages 不会被就地修改。
+    """
+    prompt = config.chat_system_prompt
+    if not prompt:
+        return messages
+    return [{"role": "system", "content": prompt}, *messages]
+
+
 def assistant_history_text(messages: list[dict[str, Any]]) -> str:
     return "".join(str(item.get("content") or "") for item in messages if item.get("role") == "assistant")
 

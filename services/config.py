@@ -506,6 +506,15 @@ class ConfigStore:
         return str(self.data.get("global_system_prompt") or "").strip()
 
     @property
+    def chat_system_prompt(self) -> str:
+        """文本对话（含 TOEIC 等 API-to-API 场景）专用系统提示词。
+
+        仅作用于纯文本链路（/v1/chat/completions、/v1/responses、/v1/messages），
+        不会影响图片生成。与 global_system_prompt 叠加使用。
+        """
+        return str(self.data.get("chat_system_prompt") or "").strip()
+
+    @property
     def images_dir(self) -> Path:
         path = DATA_DIR / "images"
         path.mkdir(parents=True, exist_ok=True)
@@ -564,6 +573,7 @@ class ConfigStore:
         data["sensitive_words"] = self.sensitive_words
         data["ai_review"] = self.ai_review
         data["global_system_prompt"] = self.global_system_prompt
+        data["chat_system_prompt"] = self.chat_system_prompt
         data["backup"] = self.get_backup_settings()
         data["image_storage"] = self.get_image_storage_settings()
         data["chat_completion_cache"] = self.get_chat_completion_cache_settings()

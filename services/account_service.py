@@ -1000,19 +1000,49 @@ class AccountService:
             if plan_type or source_type else f"no available image quota (tried {len(attempted_tokens)} tokens)"
         )
 
+    # 文本对话账号的套餐优先级：数字越大越优先。
+    # 高价值套餐（Pro/Team/Plus）用于 TOEIC 等文本问答，稳定性和质量更好。
+    _TEXT_PLAN_PRIORITY = {
+        "Pro": 50,
+        "Enterprise": 45,
+        "Team": 40,
+        "Plus": 30,
+        "ProLite": 20,
+        "free": 0,
+    }
+
+    @classmethod
+    def _text_plan_priority(cls, account: dict) -> int:
+        normalized = cls._normalize_account_type(account.get("type"))
+        if not normalized:
+            return -1
+        return cls._TEXT_PLAN_PRIORITY.get(normalized, 10)
+
     def get_text_access_token(self, excluded_tokens: set[str] | None = None) -> str:
         excluded = set(excluded_tokens or set())
         with self._lock:
             candidates = [
-                token
+                (account, token)
                 for account in self._accounts.values()
-                if account.get("status") not in {"禁用", "异常"}
+                if account.get("status") not in {"禁用", "异常", "限流"}
                    and (token := account.get("access_token") or "")
                    and token not in excluded
             ]
+            # 优先使用高价值套餐；若全部被限流则回退到未过滤的可用账号。
+            if not candidates:
+                candidates = [
+                    (account, token)
+                    for account in self._accounts.values()
+                    if account.get("status") not in {"禁用", "异常"}
+                       and (token := account.get("access_token") or "")
+                       and token not in excluded
+                ]
             if not candidates:
                 return ""
-            access_token = candidates[self._index % len(candidates)]
+            # 找出优先级最高的一档，仅在该档内做轮询，保证 TOEIC 优先命中 Plus/Pro。
+            best_priority = max(self._text_plan_priority(account) for account, _ in candidates)
+            top_candidates = [token for account, token in candidates if self._text_plan_priority(account) == best_priority]
+            access_token = top_candidates[self._index % len(top_candidates)]
             self._index += 1
         return self.refresh_access_token(access_token, event="get_text_access_token") or access_token
 

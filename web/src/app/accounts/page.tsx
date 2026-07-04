@@ -63,12 +63,20 @@ import { cn } from "@/lib/utils";
 
 import { AccountImportDialog } from "./components/account-import-dialog";
 
+// Nhãn hiển thị cho từng trạng thái tài khoản (giá trị backend giữ nguyên tiếng Trung).
+const statusLabels: Record<AccountStatus, string> = {
+  正常: "Bình thường",
+  限流: "Giới hạn",
+  异常: "Bất thường",
+  禁用: "Vô hiệu",
+};
+
 const accountStatusOptions: { label: string; value: AccountStatus | "all" }[] = [
-  { label: "全部状态", value: "all" },
-  { label: "正常", value: "正常" },
-  { label: "限流", value: "限流" },
-  { label: "异常", value: "异常" },
-  { label: "禁用", value: "禁用" },
+  { label: "Tất cả trạng thái", value: "all" },
+  { label: statusLabels["正常"], value: "正常" },
+  { label: statusLabels["限流"], value: "限流" },
+  { label: statusLabels["异常"], value: "异常" },
+  { label: statusLabels["禁用"], value: "禁用" },
 ];
 
 const statusMeta: Record<
@@ -85,12 +93,12 @@ const statusMeta: Record<
 };
 
 const metricCards = [
-  { key: "total", label: "账户总数", color: "text-stone-900", icon: UserRound },
-  { key: "active", label: "正常账户", color: "text-emerald-600", icon: CheckCircle2 },
-  { key: "limited", label: "限流账户", color: "text-orange-500", icon: CircleAlert },
-  { key: "abnormal", label: "异常账户", color: "text-rose-500", icon: CircleOff },
-  { key: "disabled", label: "禁用账户", color: "text-stone-500", icon: Ban },
-  { key: "quota", label: "剩余额度", color: "text-blue-500", icon: RefreshCw },
+  { key: "total", label: "Tổng số tài khoản", color: "text-stone-900", icon: UserRound },
+  { key: "active", label: "Tài khoản bình thường", color: "text-emerald-600", icon: CheckCircle2 },
+  { key: "limited", label: "Tài khoản bị giới hạn", color: "text-orange-500", icon: CircleAlert },
+  { key: "abnormal", label: "Tài khoản bất thường", color: "text-rose-500", icon: CircleOff },
+  { key: "disabled", label: "Tài khoản vô hiệu", color: "text-stone-500", icon: Ban },
+  { key: "quota", label: "Hạn mức còn lại", color: "text-blue-500", icon: RefreshCw },
 ] as const;
 
 function isUnlimitedImageQuotaAccount(account: Account) {
@@ -113,7 +121,7 @@ function formatQuota(account: Account) {
     return "∞";
   }
   if (imageQuotaUnknown(account)) {
-    return "未知";
+    return "Không rõ";
   }
   return String(Math.max(0, account.quota));
 }
@@ -132,7 +140,7 @@ function formatRestoreAt(value?: string | null) {
   const totalHours = Math.ceil(diffMs / (1000 * 60 * 60));
   const days = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
-  const relative = diffMs > 0 ? `剩余 ${days}d ${hours}h` : "已到恢复时间";
+  const relative = diffMs > 0 ? `Còn ${days}d ${hours}h` : "Đã đến giờ khôi phục";
 
   const pad = (num: number) => String(num).padStart(2, "0");
   const absolute = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
@@ -148,7 +156,7 @@ function formatQuotaSummary(accounts: Account[]) {
     return "∞";
   }
   if (availableAccounts.some(imageQuotaUnknown)) {
-    return "未知";
+    return "Không rõ";
   }
   return formatCompact(availableAccounts.reduce((sum, account) => sum + Math.max(0, account.quota), 0));
 }
@@ -231,7 +239,7 @@ function AccountsPageContent() {
       setAccounts(data.items);
       setSelectedIds((prev) => prev.filter((id) => data.items.some((item) => item.access_token === id)));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "加载账户失败";
+      const message = error instanceof Error ? error.message : "Tải danh sách tài khoản thất bại";
       toast.error(message);
     } finally {
       if (!silent) {
@@ -246,7 +254,7 @@ function AccountsPageContent() {
       const data = await fetchModels();
       setAvailableModels(Array.isArray(data.data) ? data.data : []);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "加载模型列表失败";
+      const message = error instanceof Error ? error.message : "Tải danh sách model thất bại";
       toast.error(message);
     } finally {
       setIsLoadingModels(false);
@@ -298,7 +306,7 @@ function AccountsPageContent() {
 
   const accountTypeOptions = useMemo(
     () => [
-      { label: "全部类型", value: "all" },
+      { label: "Tất cả loại", value: "all" },
       ...Array.from(new Set(accounts.map(displayAccountType))).map((type) => ({ label: type, value: type })),
     ],
     [accounts],
@@ -329,7 +337,7 @@ function AccountsPageContent() {
 
   const handleDeleteTokens = async (tokens: string[]) => {
     if (tokens.length === 0) {
-      toast.error("请先选择要删除的账户");
+      toast.error("Vui lòng chọn tài khoản cần xóa");
       return;
     }
 
@@ -338,9 +346,9 @@ function AccountsPageContent() {
       const data = await deleteAccounts(tokens);
       setAccounts(data.items);
       setSelectedIds((prev) => prev.filter((id) => data.items.some((item) => item.access_token === id)));
-      toast.success(`删除 ${data.removed ?? 0} 个账户`);
+      toast.success(`Đã xóa ${data.removed ?? 0} tài khoản`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "删除账户失败";
+      const message = error instanceof Error ? error.message : "Xóa tài khoản thất bại";
       toast.error(message);
     } finally {
       setIsDeleting(false);
@@ -349,7 +357,7 @@ function AccountsPageContent() {
 
   const handleRefreshAccounts = async (accessTokens: string[]) => {
     if (accessTokens.length === 0) {
-      toast.error("没有需要刷新的账户");
+      toast.error("Không có tài khoản nào cần làm mới");
       return;
     }
 
@@ -365,7 +373,7 @@ function AccountsPageContent() {
           }
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "刷新账户失败";
+        const message = error instanceof Error ? error.message : "Làm mới tài khoản thất bại";
         toast.error(message);
       } finally {
         setRefreshingTokens((prev) => {
@@ -397,7 +405,7 @@ function AccountsPageContent() {
       visible: true,
       current: 0,
       total,
-      message: "正在刷新账号信息...",
+      message: "Đang làm mới thông tin tài khoản...",
       email: "",
     });
 
@@ -416,14 +424,14 @@ function AccountsPageContent() {
                 return;
               }
               if (!p.result) {
-                reject(new Error("刷新结果为空"));
+                reject(new Error("Kết quả làm mới rỗng"));
                 return;
               }
               // 更新最终进度显示
               setProgress((prev) => ({
                 ...prev,
                 current: prev.total,
-                message: "刷新完成",
+                message: "Làm mới hoàn tất",
               }));
               // 清除联动统计
               setRefreshSummary(null);
@@ -443,7 +451,7 @@ function AccountsPageContent() {
               if (baseHasUnlimited) {
                 runningQuota = "∞";
               } else if (baseHasUnknown) {
-                runningQuota = "未知";
+                runningQuota = "Không rõ";
               } else {
                 runningQuota = formatCompact(baseQuotaNum + (p.total_quota ?? 0));
               }
@@ -475,7 +483,7 @@ function AccountsPageContent() {
           visible: true,
           current: 0,
           total: relogined,
-          message: `正在尝试对 ${relogined} 个账号进行移除异常状态`,
+          message: `Đang thử gỡ trạng thái bất thường cho ${relogined} tài khoản`,
           email: "",
         });
         // 模拟重新登录进度
@@ -489,7 +497,7 @@ function AccountsPageContent() {
                 visible: true,
                 current: relogined,
                 total: relogined,
-                message: "移除异常状态完成",
+                message: "Gỡ trạng thái bất thường hoàn tất",
                 email: "",
               });
               setTimeout(() => setProgress({ visible: false, current: 0, total: 0, message: "", email: "" }), 800);
@@ -505,7 +513,7 @@ function AccountsPageContent() {
           visible: true,
           current: total,
           total,
-          message: "刷新完成",
+          message: "Làm mới hoàn tất",
           email: "",
         });
         setTimeout(() => setProgress({ visible: false, current: 0, total: 0, message: "", email: "" }), 800);
@@ -514,15 +522,15 @@ function AccountsPageContent() {
       if ((data.errors ?? []).length > 0) {
         const firstError = data.errors?.[0]?.error;
         toast.error(
-          `刷新成功 ${data.refreshed} 个，失败 ${(data.errors ?? []).length} 个${firstError ? `，首个错误：${firstError}` : ""}`,
+          `Làm mới thành công ${data.refreshed}, thất bại ${(data.errors ?? []).length}${firstError ? `, lỗi đầu tiên: ${firstError}` : ""}`,
         );
       } else {
-        toast.success(`刷新成功 ${data.refreshed} 个账户${relogined > 0 ? `，已触发 ${relogined} 个账号重新登录` : ""}`);
+        toast.success(`Làm mới thành công ${data.refreshed} tài khoản${relogined > 0 ? `, đã kích hoạt đăng nhập lại ${relogined} tài khoản` : ""}`);
       }
     } catch (error) {
       setProgress({ visible: false, current: 0, total: 0, message: "", email: "" });
       setRefreshSummary(null);
-      const message = error instanceof Error ? error.message : "刷新账户失败";
+      const message = error instanceof Error ? error.message : "Làm mới tài khoản thất bại";
       toast.error(message);
     } finally {
       setIsRefreshing(false);
@@ -556,7 +564,7 @@ function AccountsPageContent() {
 
   const handleReLogin = async (accessTokens: string[]) => {
     if (accessTokens.length === 0) {
-      toast.error("请先选择要恢复的账户");
+      toast.error("Vui lòng chọn tài khoản cần khôi phục");
       return;
     }
 
@@ -567,12 +575,12 @@ function AccountsPageContent() {
     });
 
     if (abnormalTokens.length === 0) {
-      toast.error("选中账号中没有异常账号");
+      toast.error("Không có tài khoản bất thường nào trong số đã chọn");
       return;
     }
 
     if (abnormalTokens.length < accessTokens.length) {
-      toast.info(`已过滤 ${accessTokens.length - abnormalTokens.length} 个非异常账号`);
+      toast.info(`Đã lọc bỏ ${accessTokens.length - abnormalTokens.length} tài khoản không bất thường`);
     }
 
     setIsRelogining(true);
@@ -587,7 +595,7 @@ function AccountsPageContent() {
 
     // 显示进度条（真实进度）
     const total = abnormalTokens.length;
-    setProgress({ visible: true, current: 0, total, message: "正在尝试恢复异常账号...", email: "" });
+    setProgress({ visible: true, current: 0, total, message: "Đang thử khôi phục tài khoản bất thường...", email: "" });
 
     try {
       const { progress_id } = await reLoginAccounts(abnormalTokens);
@@ -603,7 +611,7 @@ function AccountsPageContent() {
                 reject(new Error(p.error));
                 return;
               }
-              setProgress((prev) => ({ ...prev, current: prev.total, message: "恢复流程已完成" }));
+              setProgress((prev) => ({ ...prev, current: prev.total, message: "Quy trình khôi phục đã hoàn tất" }));
               setRefreshSummary(null);
               resolve();
             } else {
@@ -612,13 +620,13 @@ function AccountsPageContent() {
               // 找到最新一条有错误的结果
               const lastErrorResult = [...results].reverse().find((r) => r.error);
               const emailHint = lastErrorResult
-                ? `失败: ${lastErrorResult.token} ${lastErrorResult.error ?? ""}`
-                : `已处理 ${p.processed}/${p.total}`;
+                ? `Thất bại: ${lastErrorResult.token} ${lastErrorResult.error ?? ""}`
+                : `Đã xử lý ${p.processed}/${p.total}`;
               setProgress((prev) => ({
                 ...prev,
                 current: p.processed,
                 email: emailHint,
-                message: "正在尝试恢复异常账号...",
+                message: "Đang thử khôi phục tài khoản bất thường...",
               }));
 
               // 实时更新统计卡片：基数 + 已处理的恢复结果
@@ -663,16 +671,16 @@ function AccountsPageContent() {
         visible: true,
         current: total,
         total,
-        message: "恢复完成",
+        message: "Khôi phục hoàn tất",
         email: "",
       });
       setTimeout(() => setProgress({ visible: false, current: 0, total: 0, message: "", email: "" }), 800);
 
-      toast.success(`恢复流程已全部完成`);
+      toast.success(`Quy trình khôi phục đã hoàn tất toàn bộ`);
     } catch (error) {
       setProgress({ visible: false, current: 0, total: 0, message: "", email: "" });
       setRefreshSummary(null);
-      const message = error instanceof Error ? error.message : "重新登录失败";
+      const message = error instanceof Error ? error.message : "Đăng nhập lại thất bại";
       toast.error(message);
     } finally {
       setIsRelogining(false);
@@ -688,17 +696,17 @@ function AccountsPageContent() {
   const handleTestAccountProxy = async () => {
     const candidate = editProxy.trim();
     if (!candidate) {
-      toast.error("请先填写代理地址");
+      toast.error("Vui lòng nhập địa chỉ proxy trước");
       return;
     }
     setIsTestingProxy(true);
     try {
       const data = await testProxy(candidate);
       data.result.ok
-        ? toast.success(`代理可用（${data.result.latency_ms} ms，HTTP ${data.result.status}）`)
-        : toast.error(`代理不可用：${data.result.error ?? "未知错误"}`);
+        ? toast.success(`Proxy khả dụng (${data.result.latency_ms} ms, HTTP ${data.result.status})`)
+        : toast.error(`Proxy không khả dụng: ${data.result.error ?? "Lỗi không xác định"}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "测试代理失败");
+      toast.error(error instanceof Error ? error.message : "Kiểm tra proxy thất bại");
     } finally {
       setIsTestingProxy(false);
     }
@@ -718,9 +726,9 @@ function AccountsPageContent() {
       setAccounts(data.items);
       setSelectedIds((prev) => prev.filter((id) => data.items.some((item) => item.access_token === id)));
       setEditingAccount(null);
-      toast.success("账号信息已更新");
+      toast.success("Đã cập nhật thông tin tài khoản");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "更新账号失败";
+      const message = error instanceof Error ? error.message : "Cập nhật tài khoản thất bại";
       toast.error(message);
     } finally {
       setIsUpdating(false);
@@ -742,7 +750,7 @@ function AccountsPageContent() {
           <div className="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">
             Account Pool
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">号池管理</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Quản lý Account Pool</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -753,7 +761,7 @@ function AccountsPageContent() {
             disabled={isLoading || isRefreshing || isDeleting}
           >
             <RefreshCw className={cn("size-4", isLoading ? "animate-spin" : "")} />
-            刷新
+            Làm mới
           </Button>
           <Button
             variant="outline"
@@ -762,7 +770,7 @@ function AccountsPageContent() {
             disabled={isLoading || isRefreshing || isDeleting || accounts.length === 0}
           >
             <RefreshCw className={cn("size-4", isRefreshing ? "animate-spin" : "")} />
-            一键刷新所有账号信息和额度
+            Làm mới toàn bộ thông tin và hạn mức
           </Button>
           <AccountImportDialog
             disabled={isLoading || isRefreshing || isDeleting}
@@ -779,7 +787,7 @@ function AccountsPageContent() {
             disabled={accounts.length === 0}
           >
             <Download className="size-4" />
-            导出全部 Token
+            Xuất toàn bộ Token
           </Button>
         </div>
       </section>
@@ -810,14 +818,14 @@ function AccountsPageContent() {
       <Dialog open={Boolean(editingAccount)} onOpenChange={(open) => (!open ? setEditingAccount(null) : null)}>
         <DialogContent showCloseButton={false} className="rounded-2xl p-6">
           <DialogHeader className="gap-2">
-            <DialogTitle>编辑账户</DialogTitle>
+            <DialogTitle>Chỉnh sửa tài khoản</DialogTitle>
             <DialogDescription className="text-sm leading-6">
-              手动修改账号状态和专属代理。
+              Thay đổi thủ công trạng thái tài khoản và proxy riêng.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700">状态</label>
+              <label className="text-sm font-medium text-stone-700">Trạng thái</label>
               <Select value={editStatus} onValueChange={(value) => setEditStatus(value as AccountStatus)}>
                 <SelectTrigger className="h-11 rounded-xl border-stone-200 bg-white">
                   <SelectValue />
@@ -834,12 +842,12 @@ function AccountsPageContent() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700">账号代理</label>
+              <label className="text-sm font-medium text-stone-700">Proxy tài khoản</label>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   value={editProxy}
                   onChange={(event) => setEditProxy(event.target.value)}
-                  placeholder="留空走全局代理，例如 http://127.0.0.1:7890"
+                  placeholder="Để trống dùng proxy toàn cục, ví dụ http://127.0.0.1:7890"
                   className="h-11 rounded-xl border-stone-200 bg-white"
                 />
                 <Button
@@ -849,7 +857,7 @@ function AccountsPageContent() {
                   disabled={isTestingProxy}
                 >
                   {isTestingProxy ? <LoaderCircle className="size-4 animate-spin" /> : <Link2 className="size-4" />}
-                  测试
+                  Kiểm tra
                 </Button>
               </div>
             </div>
@@ -861,7 +869,7 @@ function AccountsPageContent() {
               onClick={() => setEditingAccount(null)}
               disabled={isUpdating}
             >
-              取消
+              Hủy
             </Button>
             <Button
               className="h-10 rounded-xl bg-stone-950 px-5 text-white hover:bg-stone-800"
@@ -869,7 +877,7 @@ function AccountsPageContent() {
               disabled={isUpdating}
             >
               {isUpdating ? <LoaderCircle className="size-4 animate-spin" /> : null}
-              保存修改
+              Lưu thay đổi
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -900,7 +908,7 @@ function AccountsPageContent() {
         <Card className="rounded-2xl border-white/80 bg-white/90 shadow-sm">
           <CardContent className="p-4">
             <div className="mb-3 text-sm font-medium text-stone-700">
-              系统可用模型
+              Model khả dụng
               <span className="ml-1 text-stone-400">({availableModels.length})</span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -912,9 +920,9 @@ function AccountsPageContent() {
                     className="inline-flex cursor-pointer items-center rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
                     onClick={() => {
                       void navigator.clipboard.writeText(model.id);
-                      toast.success("模型名已复制");
+                      toast.success("Đã sao chép tên model");
                     }}
-                    title={`点击复制 ${model.id}`}
+                    title={`Nhấn để sao chép ${model.id}`}
                   >
                     <img
                       src="/openai.svg"
@@ -926,9 +934,9 @@ function AccountsPageContent() {
                   </button>
                 ))
               ) : isLoadingModels ? (
-                <span className="text-sm text-stone-400">正在加载模型列表...</span>
+                <span className="text-sm text-stone-400">Đang tải danh sách model...</span>
               ) : (
-                <span className="text-sm text-stone-400">当前暂无可用模型</span>
+                <span className="text-sm text-stone-400">Hiện chưa có model khả dụng</span>
               )}
             </div>
           </CardContent>
@@ -938,7 +946,7 @@ function AccountsPageContent() {
       <section className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold tracking-tight">账户列表</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Danh sách tài khoản</h2>
             <Badge variant="secondary" className="rounded-lg bg-stone-200 px-2 py-0.5 text-stone-700">
               {filteredAccounts.length}
             </Badge>
@@ -953,7 +961,7 @@ function AccountsPageContent() {
                   setQuery(event.target.value);
                   setPage(1);
                 }}
-                placeholder="搜索邮箱"
+                placeholder="Tìm theo email"
                 className="h-10 rounded-xl border-stone-200 bg-white/85 pl-10"
               />
             </div>
@@ -1003,8 +1011,8 @@ function AccountsPageContent() {
                 <LoaderCircle className="size-5 animate-spin" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-stone-700">正在加载账户</p>
-                <p className="text-sm text-stone-500">从后端同步账号列表和状态。</p>
+                <p className="text-sm font-medium text-stone-700">Đang tải tài khoản</p>
+                <p className="text-sm text-stone-500">Đang đồng bộ danh sách và trạng thái tài khoản từ backend.</p>
               </div>
             </CardContent>
           </Card>
@@ -1026,17 +1034,17 @@ function AccountsPageContent() {
                   disabled={selectedTokens.length === 0 || isRefreshing}
                 >
                   {isRefreshing ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                  刷新选中账号信息和额度
+                  Làm mới thông tin & hạn mức đã chọn
                 </Button>
                 <Button
                   variant="ghost"
                   className="h-8 rounded-lg px-3 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
                   onClick={() => void handleReLogin(selectedTokens)}
                   disabled={selectedTokens.length === 0 || isRelogining}
-                  title="尝试密码登录恢复账号"
+                  title="Thử đăng nhập lại bằng mật khẩu để khôi phục tài khoản"
                 >
                   {isRelogining ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn className="size-4" />}
-                  尝试恢复异常账号
+                  Thử khôi phục tài khoản bất thường
                 </Button>
                 <Button
                   variant="ghost"
@@ -1045,7 +1053,7 @@ function AccountsPageContent() {
                   disabled={abnormalTokens.length === 0 || isDeleting}
                 >
                   {isDeleting ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  移除异常账号
+                  Xóa tài khoản bất thường
                 </Button>
                 <Button
                   variant="ghost"
@@ -1054,11 +1062,11 @@ function AccountsPageContent() {
                   disabled={selectedTokens.length === 0 || isDeleting}
                 >
                   {isDeleting ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  删除所选
+                  Xóa mục đã chọn
                 </Button>
                 {selectedIds.length > 0 ? (
                   <span className="rounded-lg bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
-                    已选择 {selectedIds.length} 项
+                    Đã chọn {selectedIds.length} mục
                   </span>
                 ) : null}
               </div>
@@ -1075,17 +1083,17 @@ function AccountsPageContent() {
                       />
                     </th>
                     <th className="w-56 px-4 py-3">token</th>
-                    <th className="w-28 px-4 py-3">类型</th>
-                    <th className="w-24 px-4 py-3">来源</th>
-                    <th className="w-24 px-4 py-3">状态</th>
-                    <th className="w-56 px-4 py-3">账号信息</th>
-                    <th className="w-32 px-4 py-3">创建时间</th>
-                    <th className="w-24 px-4 py-3">额度</th>
-                    <th className="w-40 px-4 py-3">恢复时间</th>
-                    <th className="w-18 px-4 py-3">在途</th>
-                    <th className="w-18 px-4 py-3">成功</th>
-                    <th className="w-18 px-4 py-3">失败</th>
-                    <th className="w-24 px-4 py-3">操作</th>
+                    <th className="w-28 px-4 py-3">Loại</th>
+                    <th className="w-24 px-4 py-3">Nguồn</th>
+                    <th className="w-24 px-4 py-3">Trạng thái</th>
+                    <th className="w-56 px-4 py-3">Thông tin tài khoản</th>
+                    <th className="w-32 px-4 py-3">Thời gian tạo</th>
+                    <th className="w-24 px-4 py-3">Hạn mức</th>
+                    <th className="w-40 px-4 py-3">Thời gian khôi phục</th>
+                    <th className="w-18 px-4 py-3">Đang xử lý</th>
+                    <th className="w-18 px-4 py-3">Thành công</th>
+                    <th className="w-18 px-4 py-3">Thất bại</th>
+                    <th className="w-24 px-4 py-3">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1120,7 +1128,7 @@ function AccountsPageContent() {
                               className="rounded-lg p-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
                               onClick={() => {
                                 void navigator.clipboard.writeText(account.access_token);
-                                toast.success("token 已复制");
+                                toast.success("Đã sao chép token");
                               }}
                             >
                               <Copy className="size-4" />
@@ -1143,7 +1151,7 @@ function AccountsPageContent() {
                             className="inline-flex items-center gap-1 rounded-md px-2 py-1"
                           >
                             <StatusIcon className="size-3.5" />
-                            {account.status}
+                            {statusLabels[account.status] ?? account.status}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
@@ -1188,8 +1196,8 @@ function AccountsPageContent() {
                                 }
                                 title={
                                   inflight > 0
-                                    ? "当前正在生成的图片数。号池空闲时此值持续 > 0，说明并发槽位泄漏、该账号已被静默排除出调度"
-                                    : "当前无在途生图任务"
+                                    ? "Số ảnh đang được tạo. Khi bể tài khoản rảnh mà giá trị này vẫn > 0, nghĩa là slot đồng thời bị rò rỉ và tài khoản đã bị âm thầm loại khỏi lịch điều phối"
+                                    : "Hiện không có tác vụ tạo ảnh nào đang chạy"
                                 }
                               >
                                 {inflight}
@@ -1239,8 +1247,8 @@ function AccountsPageContent() {
                     <Search className="size-5" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-stone-700">没有匹配的账户</p>
-                    <p className="text-sm text-stone-500">调整筛选条件或搜索关键字后重试。</p>
+                    <p className="text-sm font-medium text-stone-700">Không có tài khoản phù hợp</p>
+                    <p className="text-sm text-stone-500">Điều chỉnh bộ lọc hoặc từ khóa tìm kiếm rồi thử lại.</p>
                   </div>
                 </div>
               ) : null}
@@ -1249,13 +1257,13 @@ function AccountsPageContent() {
             <div className="border-t border-stone-100 px-4 py-4">
               <div className="flex items-center justify-center gap-3 overflow-x-auto whitespace-nowrap">
                 <div className="shrink-0 text-sm text-stone-500">
-                显示第 {filteredAccounts.length === 0 ? 0 : startIndex + 1} -{" "}
-                {Math.min(startIndex + Number(pageSize), filteredAccounts.length)} 条，共{" "}
-                {filteredAccounts.length} 条
+                Hiển thị {filteredAccounts.length === 0 ? 0 : startIndex + 1} -{" "}
+                {Math.min(startIndex + Number(pageSize), filteredAccounts.length)} trong tổng{" "}
+                {filteredAccounts.length}
                 </div>
 
                 <span className="shrink-0 text-sm leading-none text-stone-500">
-                  {safePage} / {pageCount} 页
+                  Trang {safePage} / {pageCount}
                 </span>
                 <Select
                   value={pageSize}
@@ -1268,10 +1276,10 @@ function AccountsPageContent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">10 / 页</SelectItem>
-                    <SelectItem value="20">20 / 页</SelectItem>
-                    <SelectItem value="50">50 / 页</SelectItem>
-                    <SelectItem value="100">100 / 页</SelectItem>
+                    <SelectItem value="10">10 / trang</SelectItem>
+                    <SelectItem value="20">20 / trang</SelectItem>
+                    <SelectItem value="50">50 / trang</SelectItem>
+                    <SelectItem value="100">100 / trang</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

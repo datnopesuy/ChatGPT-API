@@ -2,8 +2,8 @@
 
 import { EditableFilePanel } from "./editable-file-panel";
 
-const defaultPrompt = "需要制作一份《2026年Q2 电商运营工作汇报》PPT，用于公司管理层季度会议汇报，整体页数控制在 8 页以内，风格偏商务科技感。重点体现销售增长、用户增长、广告投放效果以及618活动成果，并通过折线图、柱状图、环形图、漏斗图呈现。";
+const defaultPrompt = "Cần tạo một bản PPT «Báo cáo vận hành thương mại điện tử Q2/2026» dùng cho cuộc họp quý của ban lãnh đạo công ty, tổng số trang trong khoảng 8 trang, phong cách thiên về công nghệ - doanh nghiệp. Tập trung thể hiện tăng trưởng doanh số, tăng trưởng người dùng, hiệu quả quảng cáo và thành quả sự kiện 618, trình bày qua biểu đồ đường, biểu đồ cột, biểu đồ vành khuyên và biểu đồ phễu.";
 
 export function PptPanel() {
-  return <EditableFilePanel title="PPT生成" kind="ppt" endpoint="/v1/ppt/generations" defaultPrompt={defaultPrompt} />;
+  return <EditableFilePanel title="Tạo PPT" kind="ppt" endpoint="/v1/ppt/generations" defaultPrompt={defaultPrompt} />;
 }

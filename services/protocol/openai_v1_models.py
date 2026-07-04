@@ -6,6 +6,18 @@ from services.account_service import account_service
 from services.openai_backend_api import OpenAIBackendAPI
 from utils.helper import CODEX_IMAGE_MODEL
 
+# 对外暴露的文本对话模型（TOEIC 等 API-to-API 场景使用）。
+# 与 README 中宣传的一致；即便上游动态列表未返回，也保证客户端能选到这些模型。
+TEXT_MODELS = (
+    "auto",
+    "gpt-5",
+    "gpt-5-1",
+    "gpt-5-2",
+    "gpt-5-3",
+    "gpt-5-3-mini",
+    "gpt-5-mini",
+)
+
 
 def list_models() -> dict[str, Any]:
     backend = OpenAIBackendAPI()
@@ -32,6 +44,8 @@ def list_models() -> dict[str, Any]:
            and (normalized := account_service._normalize_account_type(account.get("type")))
     }
 
+    # 始终暴露文本对话模型，方便 TOEIC 等客户端选择。
+    dynamic_models.update(TEXT_MODELS)
     if web_image_accounts:
         dynamic_models.add("gpt-image-2")
     if codex_types & {"Plus", "Team", "Pro"}:

@@ -238,14 +238,14 @@ class ChatCompletionCacheTests(unittest.TestCase):
 
     def test_output_sanitizer_removes_chatgpt_annotation_markup(self) -> None:
         text = (
-            "Repo: \ue200url\ue202basketikun/chatgpt2api"
-            "\ue202https://github.com/basketikun/chatgpt2api\ue201 "
+            "Repo: \ue200url\ue202datnopesuy/ChatGPT-API"
+            "\ue202https://github.com/datnopesuy/ChatGPT-API\ue201 "
             "details \ue200cite\ue202turn0search0\ue201."
         )
 
         self.assertEqual(
             sanitize_output_text(text),
-            "Repo: basketikun/chatgpt2api (https://github.com/basketikun/chatgpt2api) details.",
+            "Repo: datnopesuy/ChatGPT-API (https://github.com/datnopesuy/ChatGPT-API) details.",
         )
 
     def test_output_sanitizer_preserves_annotated_entity_text(self) -> None:

@@ -1,4 +1,6 @@
+import webConfig from "@/constants/common-env";
 import { httpRequest, request } from "@/lib/request";
+import { getStoredAuthKey } from "@/store/auth";
 
 export type AccountType = string;
 export type AccountStatus = "正常" | "限流" | "异常" | "禁用";
@@ -383,6 +385,163 @@ export async function fetchAccounts() {
 
 export async function fetchModels() {
   return httpRequest<ModelListResponse>("/v1/models");
+}
+
+// Danh sách model văn bản đối ngoại (khớp với backend openai_v1_models.TEXT_MODELS).
+// Dùng cho trang trò chuyện để luôn có sẵn model văn bản, kể cả khi danh sách
+// model động từ upstream chưa trả về.
+export const CHAT_TEXT_MODEL_IDS = [
+  "auto",
+  "gpt-5",
+  "gpt-5-1",
+  "gpt-5-2",
+  "gpt-5-3",
+  "gpt-5-3-mini",
+  "gpt-5-mini",
+] as const;
+
+const IMAGE_MODEL_HINT = /image|psd|ppt|dall|codex-gpt-image/i;
+
+// Lọc ra các model văn bản phù hợp để trò chuyện từ /v1/models, đồng thời gộp
+// với danh sách model văn bản mặc định để dropdown luôn có lựa chọn.
+export async function fetchTextModels(): Promise<string[]> {
+  const known = new Set<string>(CHAT_TEXT_MODEL_IDS);
+  try {
+    const { data } = await fetchModels();
+    for (const model of data) {
+      const id = String(model.id || "").trim();
+      if (id && !IMAGE_MODEL_HINT.test(id)) {
+        known.add(id);
+      }
+    }
+  } catch {
+    // Khi không lấy được danh sách model từ upstream, dùng model văn bản mặc định.
+  }
+  const ordered: string[] = [...CHAT_TEXT_MODEL_IDS].filter((id) => known.has(id));
+  for (const id of known) {
+    if (!ordered.includes(id)) {
+      ordered.push(id);
+    }
+  }
+  return ordered;
+}
+
+export type ChatStreamContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type ChatStreamMessage = {
+  role: "system" | "user" | "assistant";
+  content: string | ChatStreamContentPart[];
+};
+
+export type ChatStreamRequest = {
+  model: string;
+  messages: ChatStreamMessage[];
+  reasoningEffort?: string;
+  signal?: AbortSignal;
+  onDelta: (delta: string) => void;
+};
+
+// Gọi /v1/chat/completions ở chế độ streaming (SSE).
+// Dùng fetch + ReadableStream vì axios không phù hợp để xử lý luồng tăng dần.
+export async function streamChatCompletion({
+  model,
+  messages,
+  reasoningEffort,
+  signal,
+  onDelta,
+}: ChatStreamRequest): Promise<string> {
+  const authKey = await getStoredAuthKey();
+  const baseUrl = webConfig.apiUrl.replace(/\/$/, "");
+  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(authKey ? { Authorization: `Bearer ${authKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: model || "auto",
+      stream: true,
+      messages,
+      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    }),
+    signal,
+  });
+
+  if (!response.ok || !response.body) {
+    let message = `Yêu cầu thất bại (${response.status})`;
+    try {
+      const payload = await response.json();
+      const detail = payload?.detail ?? payload?.error ?? payload?.message;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (detail && typeof detail === "object" && typeof detail.error === "string") {
+        message = detail.error;
+      } else if (detail && typeof detail === "object" && typeof detail.message === "string") {
+        message = detail.message;
+      }
+    } catch {
+      // Giữ nguyên thông báo lỗi mặc định khi thân phản hồi không phải JSON.
+    }
+    throw new Error(message);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+
+  const flushEvent = (block: string) => {
+    for (const line of block.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) {
+        continue;
+      }
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") {
+        continue;
+      }
+      let chunk: unknown;
+      try {
+        chunk = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+      const choice =
+        chunk && typeof chunk === "object"
+          ? ((chunk as { choices?: Array<{ delta?: { content?: unknown } }> }).choices || [])[0]
+          : undefined;
+      const errorField = (chunk as { error?: { message?: string } } | undefined)?.error;
+      if (errorField?.message) {
+        throw new Error(errorField.message);
+      }
+      const delta = String(choice?.delta?.content ?? "");
+      if (delta) {
+        full += delta;
+        onDelta(delta);
+      }
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let separator = buffer.indexOf("\n\n");
+    while (separator !== -1) {
+      const block = buffer.slice(0, separator);
+      buffer = buffer.slice(separator + 2);
+      flushEvent(block);
+      separator = buffer.indexOf("\n\n");
+    }
+  }
+  if (buffer.trim()) {
+    flushEvent(buffer);
+  }
+  return full;
 }
 
 export async function createAccounts(tokens: string[], accounts: AccountImportPayload[] = []) {

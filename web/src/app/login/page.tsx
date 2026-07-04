@@ -22,7 +22,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     const normalizedAuthKey = authKey.trim();
     if (!normalizedAuthKey) {
-      toast.error("请输入 密钥");
+      toast.error("Vui lòng nhập khóa truy cập");
       return;
     }
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
       });
       router.replace(getDefaultRouteForRole(data.role));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "登录失败";
+      const message = error instanceof Error ? error.message : "Đăng nhập thất bại";
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -62,14 +62,14 @@ export default function LoginPage() {
               <LockKeyhole className="size-5" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-stone-950">欢迎回来</h1>
-              <p className="text-sm leading-6 text-stone-500">输入密钥后继续使用账号管理和图片生成功能。</p>
+              <h1 className="text-3xl font-semibold tracking-tight text-stone-950">Chào mừng trở lại</h1>
+              <p className="text-sm leading-6 text-stone-500">Nhập khóa truy cập để tiếp tục dùng chức năng quản lý tài khoản và tạo ảnh.</p>
             </div>
           </div>
 
           <div className="space-y-3">
             <label htmlFor="auth-key" className="block text-sm font-medium text-stone-700">
-              密钥
+              Khóa truy cập
             </label>
             <Input
               id="auth-key"
@@ -81,7 +81,7 @@ export default function LoginPage() {
                   void handleLogin();
                 }
               }}
-              placeholder="请输入密钥"
+              placeholder="Nhập khóa truy cập"
               className="h-13 rounded-2xl border-stone-200 bg-white px-4"
             />
           </div>
@@ -92,7 +92,7 @@ export default function LoginPage() {
             disabled={isSubmitting}
           >
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
-            登录
+            Đăng nhập
           </Button>
         </CardContent>
       </Card>

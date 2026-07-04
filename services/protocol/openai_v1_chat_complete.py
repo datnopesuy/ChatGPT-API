@@ -17,6 +17,7 @@ from services.protocol.conversation import (
     count_text_tokens,
     encode_images,
     normalize_messages,
+    prepend_chat_system_prompt,
     stream_image_outputs_with_pool,
     stream_text_deltas,
     text_backend,
@@ -178,6 +179,7 @@ def text_chat_parts(body: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
     messages = normalize_text_messages(normalize_messages(chat_messages_from_body(body)))
     if has_unsupported_tools(body, WEB_SEARCH_TOOL_TYPES):
         messages.insert(0, {"role": "system", "content": TOOL_UNAVAILABLE_SYSTEM_MESSAGE})
+    messages = prepend_chat_system_prompt(messages)
     return model, messages
 
 
