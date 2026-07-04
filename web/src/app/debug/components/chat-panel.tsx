@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_CHAT_TEXT_MODEL } from "@/lib/api";
 import { httpRequest } from "@/lib/request";
 
 import { pretty, type ChatCompletionResponse, type ChatContentPart, type ChatMessage } from "./types";
@@ -70,7 +71,7 @@ function messageImages(message: ChatMessage): string[] {
 }
 
 export function ChatPanel() {
-  const [model, setModel] = useState("auto");
+  const [model, setModel] = useState(DEFAULT_CHAT_TEXT_MODEL);
   const [reasoningEffort, setReasoningEffort] = useState("");
   const [input, setInput] = useState("Xin chào, hãy nhớ dự án của tôi tên là chatgpt2api.");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
@@ -107,7 +108,7 @@ export function ChatPanel() {
     setError("");
     try {
       const body = {
-        model: model.trim() || "auto",
+        model: model.trim() || DEFAULT_CHAT_TEXT_MODEL,
         messages: nextMessages,
         ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       };

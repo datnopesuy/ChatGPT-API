@@ -218,6 +218,21 @@ def prepend_chat_system_prompt(messages: list[dict[str, Any]]) -> list[dict[str,
     return [{"role": "system", "content": prompt}, *messages]
 
 
+def prepend_model_identity_hint(messages: list[dict[str, Any]], model: str) -> list[dict[str, Any]]:
+    selected_model = str(model or "").strip()
+    if not selected_model:
+        return messages
+    hint = (
+        f"The API request model slug for this conversation is `{selected_model}`. "
+        "If asked which model or version is being used, answer with that configured model slug. "
+        "Do not infer or claim a different model slug."
+    )
+    insert_at = 0
+    while insert_at < len(messages) and messages[insert_at].get("role") == "system":
+        insert_at += 1
+    return [*messages[:insert_at], {"role": "system", "content": hint}, *messages[insert_at:]]
+
+
 def assistant_history_text(messages: list[dict[str, Any]]) -> str:
     return "".join(str(item.get("content") or "") for item in messages if item.get("role") == "assistant")
 

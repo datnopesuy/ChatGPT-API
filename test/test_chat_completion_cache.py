@@ -6,7 +6,7 @@ import json
 import base64
 
 from services.config import config
-from services.protocol import openai_v1_chat_complete, openai_v1_response
+from services.protocol import openai_v1_chat_complete, openai_v1_models, openai_v1_response
 from services.protocol.chat_completion_cache import cache_key, chat_completion_cache
 from services.protocol.conversation import iter_conversation_payloads, sanitize_output_text
 from utils.helper import extract_image_from_message_content
@@ -173,8 +173,14 @@ class ChatCompletionCacheTests(unittest.TestCase):
         ):
             openai_v1_chat_complete.handle(body)
 
+        self.assertTrue(
+            any(
+                message["role"] == "system" and openai_v1_models.DEFAULT_TEXT_MODEL in str(message["content"])
+                for message in captured_messages
+            )
+        )
         self.assertEqual(
-            captured_messages,
+            [message for message in captured_messages if message["role"] != "system"],
             [
                 {"role": "user", "content": "repeat me"},
                 {"role": "assistant", "content": "old answer"},
@@ -287,7 +293,7 @@ class ChatCompletionCacheTests(unittest.TestCase):
             "tools": [{"type": "function", "name": "shell"}],
         })
 
-        self.assertEqual(model, "auto")
+        self.assertEqual(model, openai_v1_models.DEFAULT_TEXT_MODEL)
         self.assertEqual(messages[0]["role"], "system")
         self.assertIn("cannot execute local tools", str(messages[0]["content"]))
 
@@ -446,8 +452,9 @@ class ChatCompletionCacheTests(unittest.TestCase):
             })
 
         request_get.assert_called_once()
-        self.assertEqual(model, "auto")
-        content = messages[0]["content"]
+        self.assertEqual(model, openai_v1_models.DEFAULT_TEXT_MODEL)
+        user_message = next(message for message in messages if message["role"] == "user")
+        content = user_message["content"]
         self.assertEqual(content[0], {"type": "text", "text": "Describe this"})
         self.assertEqual(content[1]["type"], "image")
         self.assertEqual(content[1]["data"], PNG_1X1)
@@ -475,7 +482,8 @@ class ChatCompletionCacheTests(unittest.TestCase):
             response = openai_v1_response.handle(body)
 
         self.assertEqual(response["output"][0]["content"][0]["text"], "red")
-        content = captured["messages"][0]["content"]
+        user_message = next(message for message in captured["messages"] if message["role"] == "user")
+        content = user_message["content"]
         self.assertEqual(content[0], {"type": "text", "text": "What color is this image?"})
         self.assertEqual(content[1]["type"], "image")
         self.assertEqual(content[1]["mime"], "image/png")
@@ -502,7 +510,8 @@ class ChatCompletionCacheTests(unittest.TestCase):
             })
 
         request_get.assert_called_once()
-        content = messages[0]["content"]
+        user_message = next(message for message in messages if message["role"] == "user")
+        content = user_message["content"]
         self.assertEqual(content[0], {"type": "text", "text": "Describe this"})
         self.assertEqual(content[1]["type"], "image")
         self.assertEqual(content[1]["data"], PNG_1X1)

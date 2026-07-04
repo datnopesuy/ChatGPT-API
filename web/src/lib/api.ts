@@ -387,11 +387,14 @@ export async function fetchModels() {
   return httpRequest<ModelListResponse>("/v1/models");
 }
 
+export const DEFAULT_CHAT_TEXT_MODEL = "gpt-5-5";
+
 // Danh sách model văn bản đối ngoại (khớp với backend openai_v1_models.TEXT_MODELS).
 // Dùng cho trang trò chuyện để luôn có sẵn model văn bản, kể cả khi danh sách
 // model động từ upstream chưa trả về.
 export const CHAT_TEXT_MODEL_IDS = [
   "auto",
+  DEFAULT_CHAT_TEXT_MODEL,
   "gpt-5",
   "gpt-5-1",
   "gpt-5-2",
@@ -461,7 +464,7 @@ export async function streamChatCompletion({
       ...(authKey ? { Authorization: `Bearer ${authKey}` } : {}),
     },
     body: JSON.stringify({
-      model: model || "auto",
+      model: model || DEFAULT_CHAT_TEXT_MODEL,
       stream: true,
       messages,
       ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),

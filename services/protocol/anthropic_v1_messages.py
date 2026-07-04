@@ -11,8 +11,15 @@ from typing import Any
 
 from services.account_service import account_service
 from services.openai_backend_api import OpenAIBackendAPI
-from services.protocol.conversation import count_message_tokens, count_text_tokens, normalize_messages, prepend_chat_system_prompt
+from services.protocol.conversation import (
+    count_message_tokens,
+    count_text_tokens,
+    normalize_messages,
+    prepend_chat_system_prompt,
+    prepend_model_identity_hint,
+)
 from services.protocol.openai_v1_chat_complete import collect_chat_content, stream_text_chat_completion
+from services.protocol.openai_v1_models import DEFAULT_TEXT_MODEL
 
 XML_TOOL_RULE = """Tool output adapter: when calling tools, output ONLY this XML and no prose/markdown:
 <tool_calls><tool_call><tool_name>TOOL_NAME</tool_name><parameters><PARAM><![CDATA[value]]></PARAM></parameters></tool_call></tool_calls>"""
@@ -109,10 +116,16 @@ def preprocess_payload(payload: dict[str, object], text_mapper: Callable[[str], 
 
 def message_request(body: dict[str, Any]) -> MessageRequest:
     payload = preprocess_payload(dict(body))
+    model = str(payload.get("model") or DEFAULT_TEXT_MODEL).strip() or DEFAULT_TEXT_MODEL
+    if model == "auto":
+        model = DEFAULT_TEXT_MODEL
     return MessageRequest(
         backend=OpenAIBackendAPI(access_token=account_service.get_text_access_token()),
-        messages=prepend_chat_system_prompt(normalize_messages(payload.get("messages"), payload.get("system"))),
-        model=str(payload.get("model") or "auto").strip() or "auto",
+        messages=prepend_model_identity_hint(
+            prepend_chat_system_prompt(normalize_messages(payload.get("messages"), payload.get("system"))),
+            model,
+        ),
+        model=model,
         tools=payload.get("tools"),
     )
 

@@ -547,6 +547,13 @@ class OpenAIBackendAPI:
         normalized_effort = self._normalize_thinking_effort(thinking_effort)
         if normalized_effort:
             payload["thinking_effort"] = normalized_effort
+        logger.debug({
+            "event": "conversation_payload_model",
+            "model": payload["model"],
+            "thinking_effort": normalized_effort,
+            "message_count": len(messages),
+            "authenticated": bool(self.access_token),
+        })
         return payload
 
     def _image_model_slug(self, model: str) -> str:

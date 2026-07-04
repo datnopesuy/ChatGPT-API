@@ -15,6 +15,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  DEFAULT_CHAT_TEXT_MODEL,
   fetchTextModels,
   streamChatCompletion,
   type ChatStreamMessage,
@@ -125,8 +126,8 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [models, setModels] = useState<string[]>(["auto"]);
-  const [model, setModel] = useState("auto");
+  const [models, setModels] = useState<string[]>([DEFAULT_CHAT_TEXT_MODEL]);
+  const [model, setModel] = useState(DEFAULT_CHAT_TEXT_MODEL);
   const [reasoningEffort, setReasoningEffort] = useState("");
   const [input, setInput] = useState("");
   const [selectedImages, setSelectedImages] = useState<StoredChatImage[]>([]);
@@ -146,9 +147,9 @@ export default function ChatPage() {
       try {
         const list = await fetchTextModels();
         if (!active) return;
-        setModels(list.length > 0 ? list : ["auto"]);
+        setModels(list.length > 0 ? list : [DEFAULT_CHAT_TEXT_MODEL]);
       } catch {
-        if (active) setModels(["auto"]);
+        if (active) setModels([DEFAULT_CHAT_TEXT_MODEL]);
       }
     })();
     return () => {
@@ -161,7 +162,7 @@ export default function ChatPage() {
     if (typeof window === "undefined") return;
     const savedModel = window.localStorage.getItem(CHAT_MODEL_STORAGE_KEY);
     const savedEffort = window.localStorage.getItem(CHAT_EFFORT_STORAGE_KEY);
-    if (savedModel) setModel(savedModel);
+    if (savedModel && savedModel !== "auto") setModel(savedModel);
     if (savedEffort) setReasoningEffort(savedEffort);
   }, []);
 

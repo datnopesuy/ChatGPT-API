@@ -18,10 +18,12 @@ from services.protocol.conversation import (
     encode_images,
     normalize_messages,
     prepend_chat_system_prompt,
+    prepend_model_identity_hint,
     stream_image_outputs_with_pool,
     stream_text_deltas,
     text_backend,
 )
+from services.protocol.openai_v1_models import DEFAULT_TEXT_MODEL
 from services.protocol.web_search_tool import (
     WEB_SEARCH_TOOL_TYPES,
     has_unsupported_tools,
@@ -175,11 +177,14 @@ def chat_image_args(body: dict[str, Any]) -> tuple[str, str, int, list[tuple[byt
 
 
 def text_chat_parts(body: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
-    model = str(body.get("model") or "auto").strip() or "auto"
+    model = str(body.get("model") or DEFAULT_TEXT_MODEL).strip() or DEFAULT_TEXT_MODEL
+    if model == "auto":
+        model = DEFAULT_TEXT_MODEL
     messages = normalize_text_messages(normalize_messages(chat_messages_from_body(body)))
     if has_unsupported_tools(body, WEB_SEARCH_TOOL_TYPES):
         messages.insert(0, {"role": "system", "content": TOOL_UNAVAILABLE_SYSTEM_MESSAGE})
     messages = prepend_chat_system_prompt(messages)
+    messages = prepend_model_identity_hint(messages, model)
     return model, messages
 
 

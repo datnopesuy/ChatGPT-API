@@ -16,10 +16,12 @@ from services.protocol.conversation import (
     encode_images,
     normalize_messages,
     prepend_chat_system_prompt,
+    prepend_model_identity_hint,
     stream_image_outputs_with_pool,
     stream_text_deltas,
     text_backend,
 )
+from services.protocol.openai_v1_models import DEFAULT_TEXT_MODEL
 from services.protocol.web_search_tool import (
     WEB_SEARCH_TOOL_TYPES,
     has_unsupported_tools,
@@ -290,16 +292,21 @@ def response_completed(
 
 
 def text_response_parts(body: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
-    model = str(body.get("model") or "auto").strip() or "auto"
+    model = str(body.get("model") or DEFAULT_TEXT_MODEL).strip() or DEFAULT_TEXT_MODEL
+    if model == "auto":
+        model = DEFAULT_TEXT_MODEL
     messages = normalize_text_messages(normalize_messages(messages_from_input(body.get("input"), body.get("instructions"))))
     if has_unsupported_response_tools(body):
         messages.insert(0, {"role": "system", "content": TOOL_UNAVAILABLE_SYSTEM_MESSAGE})
     messages = prepend_chat_system_prompt(messages)
+    messages = prepend_model_identity_hint(messages, model)
     return model, messages
 
 
 def stream_text_response(backend, body: dict[str, Any], messages: list[dict[str, Any]] | None = None) -> Iterator[dict[str, Any]]:
-    model = str(body.get("model") or "auto").strip() or "auto"
+    model = str(body.get("model") or DEFAULT_TEXT_MODEL).strip() or DEFAULT_TEXT_MODEL
+    if model == "auto":
+        model = DEFAULT_TEXT_MODEL
     messages = messages if messages is not None else messages_from_input(body.get("input"), body.get("instructions"))
     thinking_effort = thinking_effort_from_body(body)
     response_id = f"resp_{uuid.uuid4().hex}"
@@ -324,7 +331,9 @@ def stream_text_response(backend, body: dict[str, Any], messages: list[dict[str,
 
 
 def stream_web_search_response(body: dict[str, Any], messages: list[dict[str, Any]] | None = None) -> Iterator[dict[str, Any]]:
-    model = str(body.get("model") or "auto").strip() or "auto"
+    model = str(body.get("model") or DEFAULT_TEXT_MODEL).strip() or DEFAULT_TEXT_MODEL
+    if model == "auto":
+        model = DEFAULT_TEXT_MODEL
     messages = messages if messages is not None else messages_from_input(body.get("input"), body.get("instructions"))
     query = search_query_from_messages(messages) or extract_response_prompt(body.get("input"))
     if not query:

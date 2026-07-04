@@ -2,6 +2,8 @@
 
 import localforage from "localforage";
 
+import { DEFAULT_CHAT_TEXT_MODEL } from "@/lib/api";
+
 export type ChatRole = "user" | "assistant";
 
 export type StoredChatImage = {
@@ -80,7 +82,7 @@ function normalizeConversation(conversation: ChatConversation & Record<string, u
   return {
     id: String(conversation.id || `${Date.now()}`),
     title: String(conversation.title || ""),
-    model: typeof conversation.model === "string" && conversation.model ? conversation.model : "auto",
+    model: typeof conversation.model === "string" && conversation.model ? conversation.model : DEFAULT_CHAT_TEXT_MODEL,
     reasoningEffort: typeof conversation.reasoningEffort === "string" ? conversation.reasoningEffort : "",
     createdAt: String(conversation.createdAt || lastMessage?.createdAt || new Date().toISOString()),
     updatedAt: String(conversation.updatedAt || lastMessage?.createdAt || new Date().toISOString()),
