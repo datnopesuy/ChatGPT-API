@@ -21,6 +21,7 @@ from utils.helper import anthropic_sse_stream, sse_json_stream
 LOG_TYPE_CALL = "call"
 LOG_TYPE_ACCOUNT = "account"
 INTERNAL_RESPONSE_KEYS = {"_account_email", "_conversation_id"}
+RESPONSE_TEXT_LOG_LIMIT = 8000
 
 
 class LogService:
@@ -179,6 +180,113 @@ def _request_excerpt(text: object, limit: int = 1000) -> str:
     return normalized[: limit - 1].rstrip() + "…"
 
 
+def _response_excerpt(text: object, limit: int = RESPONSE_TEXT_LOG_LIMIT) -> str:
+    value = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not value:
+        return ""
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3].rstrip() + "..."
+
+
+def _append_text(parts: list[str], value: object) -> None:
+    if isinstance(value, str) and value:
+        parts.append(value)
+
+
+def _content_text_parts(content: object) -> list[str]:
+    parts: list[str] = []
+    if isinstance(content, str):
+        _append_text(parts, content)
+        return parts
+    if isinstance(content, dict):
+        block_type = str(content.get("type") or "")
+        if block_type in {"text", "output_text", "input_text"}:
+            _append_text(parts, content.get("text"))
+        elif "text" in content and block_type not in {"image", "input_image", "image_url"}:
+            _append_text(parts, content.get("text"))
+        nested = content.get("content")
+        if nested is not None and nested is not content:
+            parts.extend(_content_text_parts(nested))
+        return parts
+    if isinstance(content, list):
+        for item in content:
+            parts.extend(_content_text_parts(item))
+    return parts
+
+
+def _response_text_parts(value: object) -> list[str]:
+    """Extract human-readable ChatGPT output from OpenAI/Anthropic-compatible responses.
+
+    Large binary fields (b64_json/image data) are intentionally ignored; logs should answer
+    "ChatGPT said what?" without storing huge image payloads or internal metadata.
+    """
+    parts: list[str] = []
+    if not isinstance(value, dict):
+        return parts
+
+    choices = value.get("choices")
+    if isinstance(choices, list):
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            message = choice.get("message")
+            if isinstance(message, dict):
+                parts.extend(_content_text_parts(message.get("content")))
+            delta = choice.get("delta")
+            if isinstance(delta, dict):
+                parts.extend(_content_text_parts(delta.get("content")))
+
+    output = value.get("output")
+    if isinstance(output, list):
+        for item in output:
+            if isinstance(item, dict):
+                parts.extend(_content_text_parts(item.get("content")))
+                parts.extend(_content_text_parts(item.get("text")))
+
+    response = value.get("response")
+    if isinstance(response, dict):
+        parts.extend(_response_text_parts(response))
+
+    content = value.get("content")
+    if isinstance(content, (list, str, dict)):
+        parts.extend(_content_text_parts(content))
+
+    message = value.get("message")
+    if isinstance(message, str):
+        _append_text(parts, message)
+
+    return parts
+
+
+def _stream_response_text_parts(value: object) -> list[str]:
+    if not isinstance(value, dict):
+        return []
+    parts: list[str] = []
+
+    choices = value.get("choices")
+    if isinstance(choices, list):
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            delta = choice.get("delta")
+            if isinstance(delta, dict):
+                parts.extend(_content_text_parts(delta.get("content")))
+
+    event_type = str(value.get("type") or "")
+    if event_type == "response.output_text.delta":
+        _append_text(parts, value.get("delta"))
+    elif event_type == "content_block_delta":
+        delta = value.get("delta")
+        if isinstance(delta, dict):
+            _append_text(parts, delta.get("text"))
+    return parts
+
+
+def _response_text(value: object) -> str:
+    return "".join(_response_text_parts(value)).strip()
+
+
 def _image_error_response(exc: Exception) -> JSONResponse:
     from services.protocol.conversation import public_image_error_message
 
@@ -272,12 +380,14 @@ class LoggedCall:
         urls: list[str] = []
         account_emails: list[str] = []
         conversation_ids: list[str] = []
+        response_parts: list[str] = []
         failed = False
         try:
             for item in items:
                 urls.extend(_collect_urls(item))
                 account_emails.extend(_collect_account_emails(item))
                 conversation_ids.extend(_collect_conversation_ids(item))
+                response_parts.extend(_stream_response_text_parts(item))
                 yield _strip_internal_response_fields(item)
         except Exception as exc:
             failed = True
@@ -297,10 +407,12 @@ class LoggedCall:
         finally:
             if not failed:
                 self.log("流式调用结束", urls=urls, account_email=account_emails[0] if account_emails else "",
-                         conversation_id=conversation_ids[0] if conversation_ids else "")
+                         conversation_id=conversation_ids[0] if conversation_ids else "",
+                         response_text="".join(response_parts))
 
     def log(self, suffix: str, result: object = None, status: str = "success", error: str = "",
-            urls: list[str] | None = None, account_email: str = "", conversation_id: str = "") -> None:
+            urls: list[str] | None = None, account_email: str = "", conversation_id: str = "",
+            response_text: str = "") -> None:
         detail = {
             "key_id": self.identity.get("id"),
             "key_name": self.identity.get("name"),
@@ -334,4 +446,10 @@ class LoggedCall:
         collected_urls = [*(urls or []), *_collect_urls(result)]
         if collected_urls and not self.endpoint.startswith("/v1/search"):
             detail["urls"] = list(dict.fromkeys(collected_urls))
+        raw_response_text = response_text or _response_text(result)
+        response_excerpt = _response_excerpt(raw_response_text)
+        if response_excerpt:
+            detail["response_text"] = response_excerpt
+            detail["response_text_length"] = len(raw_response_text)
+            detail["response_text_truncated"] = len(raw_response_text) > RESPONSE_TEXT_LOG_LIMIT
         log_service.add(LOG_TYPE_CALL, f"{self.summary}{suffix}", detail)
