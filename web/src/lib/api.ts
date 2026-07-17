@@ -387,7 +387,7 @@ export async function fetchModels() {
   return httpRequest<ModelListResponse>("/v1/models");
 }
 
-export const DEFAULT_CHAT_TEXT_MODEL = "gpt-5-5";
+export const DEFAULT_CHAT_TEXT_MODEL = "gpt-5.6-sol";
 
 // Danh sách model văn bản đối ngoại (khớp với backend openai_v1_models.TEXT_MODELS).
 // Dùng cho trang trò chuyện để luôn có sẵn model văn bản, kể cả khi danh sách
@@ -395,6 +395,7 @@ export const DEFAULT_CHAT_TEXT_MODEL = "gpt-5-5";
 export const CHAT_TEXT_MODEL_IDS = [
   "auto",
   DEFAULT_CHAT_TEXT_MODEL,
+  "gpt-5-5",
   "gpt-5",
   "gpt-5-1",
   "gpt-5-2",

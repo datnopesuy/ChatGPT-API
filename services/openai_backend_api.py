@@ -56,6 +56,10 @@ DEFAULT_CLIENT_BUILD_NUMBER = "6708908"
 DEFAULT_POW_SCRIPT = "https://chatgpt.com/backend-api/sentinel/sdk.js"
 CODEX_IMAGE_MODEL = "codex-gpt-image-2"
 CODEX_RESPONSES_MODEL = "gpt-5.5"
+GPT_5_6_SOL_MODEL = "gpt-5.6-sol"
+CHAT_MODEL_SLUG_ALIASES = {
+    GPT_5_6_SOL_MODEL: "gpt-5-6-thinking",
+}
 SEARCH_MODEL = "gpt-5-5"
 SEARCH_TIMEOUT_SECS = 300.0
 SEARCH_POLL_INTERVAL_SECS = 3.0
@@ -506,6 +510,11 @@ class OpenAIBackendAPI:
             return "extended"
         return ""
 
+    @staticmethod
+    def _chat_model_slug(model: str) -> str:
+        normalized = str(model or "").strip() or "auto"
+        return CHAT_MODEL_SLUG_ALIASES.get(normalized, normalized)
+
     def _conversation_payload(
             self,
             messages: list[Dict[str, Any]],
@@ -514,10 +523,11 @@ class OpenAIBackendAPI:
             thinking_effort: str = "",
     ) -> Dict[str, Any]:
         """把标准 messages 构造成 web 对话请求体。"""
+        requested_model = str(model or "").strip() or "auto"
         payload = {
             "action": "next",
             "messages": self._api_messages_to_conversation_messages(messages),
-            "model": model,
+            "model": self._chat_model_slug(requested_model),
             "parent_message_id": new_uuid(),
             "conversation_mode": {"kind": "primary_assistant"},
             "conversation_origin": None,
@@ -549,6 +559,7 @@ class OpenAIBackendAPI:
             payload["thinking_effort"] = normalized_effort
         logger.debug({
             "event": "conversation_payload_model",
+            "requested_model": requested_model,
             "model": payload["model"],
             "thinking_effort": normalized_effort,
             "message_count": len(messages),

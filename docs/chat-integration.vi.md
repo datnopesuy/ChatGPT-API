@@ -59,7 +59,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "gpt-5-5",
+  "model": "gpt-5.6-sol",
   "messages": [
     {
       "role": "system",
@@ -77,7 +77,7 @@ Field can dung:
 
 | Field | Type | Bat buoc | Ghi chu |
 | --- | --- | --- | --- |
-| `model` | string | Co | Khuyen nghi dung `gpt-5-5`; `auto` hien duoc map ve `gpt-5-5` |
+| `model` | string | Co | Khuyen nghi dung `gpt-5.6-sol`; `auto` hien duoc map ve `gpt-5.6-sol` |
 | `messages` | array | Co | Danh sach tin nhan theo thu tu hoi thoai |
 | `messages[].role` | string | Co | `system`, `user`, hoac `assistant` |
 | `messages[].content` | string | Co | Noi dung tin nhan dang text |
@@ -89,7 +89,7 @@ Field can dung:
   "id": "chatcmpl-xxxx",
   "object": "chat.completion",
   "created": 1720000000,
-  "model": "gpt-5-5",
+  "model": "gpt-5.6-sol",
   "choices": [
     {
       "index": 0,
@@ -121,7 +121,7 @@ curl http://localhost:3000/v1/chat/completions \
   -H "Authorization: Bearer <auth-key>" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-5-5",
+    "model": "gpt-5.6-sol",
     "messages": [
       {
         "role": "user",

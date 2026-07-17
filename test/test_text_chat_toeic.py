@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 from services.account_service import account_service
+from services.openai_backend_api import OpenAIBackendAPI
 from services.protocol import openai_v1_models
 from services.protocol import conversation
 
@@ -113,6 +114,21 @@ class TextModelsInModelListTests(unittest.TestCase):
             self.assertIn(model, ids)
         # 图片模型仍然保留
         self.assertIn("gpt-image-2", ids)
+
+    def test_gpt_5_6_sol_is_the_default_text_model(self):
+        self.assertEqual(openai_v1_models.DEFAULT_TEXT_MODEL, "gpt-5.6-sol")
+
+    def test_gpt_5_6_sol_uses_chatgpt_web_thinking_slug(self):
+        backend = object.__new__(OpenAIBackendAPI)
+        backend.access_token = ""
+
+        payload = backend._conversation_payload(
+            [{"role": "user", "content": "TOEIC question"}],
+            "gpt-5.6-sol",
+            "Asia/Bangkok",
+        )
+
+        self.assertEqual(payload["model"], "gpt-5-6-thinking")
 
     def test_text_models_not_duplicated_when_backend_already_returns_them(self):
         with (
